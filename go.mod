@@ -47,6 +47,7 @@ require (
 	github.com/ethantkoenig/rupture v1.0.1
 	github.com/felixge/fgprof v0.9.5
 	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/go-ap/activitypub v0.0.0-20250212090640-aeb6499ba581
 	github.com/go-ap/jsonld v0.0.0-20221030091449-f2a191312c73
@@ -133,6 +134,7 @@ require (
 	strk.kbt.io/projects/go/libravatar v0.0.0-20191008002943-06d1c002b251
 	xorm.io/builder v0.3.13
 	xorm.io/xorm v1.3.9
+
 )
 
 require (

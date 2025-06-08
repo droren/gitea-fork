@@ -141,6 +141,27 @@ func KeysPost(ctx *context.Context) {
 		}
 		ctx.Flash.Success(ctx.Tr("settings.add_gpg_key_success", keyIDs))
 		ctx.Redirect(setting.AppSubURL + "/user/settings/keys")
+	case "x509":
+		cert, err := asymkey_model.ParseAndValidateX509(form.Content)
+		if err != nil {
+			loadKeysData(ctx)
+			ctx.Data["Err_Content"] = true
+			ctx.RenderWithErr(ctx.Tr("form.invalid_x509_cert", err.Error()), tplSettingsKeys, &form)
+			return
+		}
+		xcert := &asymkey_model.X509Cert{
+			OwnerID:     ctx.Doer.ID,
+			Subject:     cert.Subject.String(),
+			Issuer:      cert.Issuer.String(),
+			Fingerprint: asymkey_model.Fingerprint(cert),
+			Content:     form.Content,
+		}
+		if _, err := db.GetEngine(ctx).Insert(xcert); err != nil {
+			ctx.ServerError("InsertX509Cert", err)
+			return
+		}
+		ctx.Flash.Success(ctx.Tr("settings.add_x509_cert_success"))
+		ctx.Redirect(setting.AppSubURL + "/user/settings/keys")
 	case "verify_gpg":
 		token := asymkey_model.VerificationToken(ctx.Doer, 1)
 		lastToken := asymkey_model.VerificationToken(ctx.Doer, 0)

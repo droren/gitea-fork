@@ -54,6 +54,7 @@ var Service = struct {
 	EnableReverseProxyAutoRegister          bool
 	EnableReverseProxyEmail                 bool
 	EnableReverseProxyFullName              bool
+	EnableClientCertAuth                    bool
 	EnableCaptcha                           bool
 	RequireCaptchaForLogin                  bool
 	RequireExternalRegistrationCaptcha      bool
@@ -188,6 +189,7 @@ func loadServiceFrom(rootCfg ConfigProvider) {
 	Service.EnableReverseProxyAutoRegister = sec.Key("ENABLE_REVERSE_PROXY_AUTO_REGISTRATION").MustBool()
 	Service.EnableReverseProxyEmail = sec.Key("ENABLE_REVERSE_PROXY_EMAIL").MustBool()
 	Service.EnableReverseProxyFullName = sec.Key("ENABLE_REVERSE_PROXY_FULL_NAME").MustBool()
+	Service.EnableClientCertAuth = sec.Key("ENABLE_CLIENT_CERT_AUTHENTICATION").MustBool(false)
 	Service.EnableCaptcha = sec.Key("ENABLE_CAPTCHA").MustBool(false)
 	Service.RequireCaptchaForLogin = sec.Key("REQUIRE_CAPTCHA_FOR_LOGIN").MustBool(false)
 	Service.RequireExternalRegistrationCaptcha = sec.Key("REQUIRE_EXTERNAL_REGISTRATION_CAPTCHA").MustBool(Service.EnableCaptcha)

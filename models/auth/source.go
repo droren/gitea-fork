@@ -33,6 +33,7 @@ const (
 	DLDAP       // 5
 	OAuth2      // 6
 	SSPI        // 7
+	X509        // 8
 )
 
 // String returns the string name of the LoginType
@@ -53,6 +54,7 @@ var Names = map[Type]string{
 	PAM:    "PAM",
 	OAuth2: "OAuth2",
 	SSPI:   "SPNEGO with SSPI",
+	X509:   "X.509 (Client Certificate)",
 }
 
 // Config represents login config as far as the db is concerned
@@ -273,6 +275,20 @@ func IsSSPIEnabled(ctx context.Context) bool {
 	}.ToConds())
 	if err != nil {
 		log.Error("IsSSPIEnabled: failed to query active SSPI sources: %v", err)
+		return false
+	}
+	return exist
+}
+
+// IsX509Enabled returns true if there is at least one activated login
+// source of type X509
+func IsX509Enabled(ctx context.Context) bool {
+	exist, err := db.Exist[Source](ctx, FindSourcesOptions{
+		IsActive:  optional.Some(true),
+		LoginType: X509,
+	}.ToConds())
+	if err != nil {
+		log.Error("IsX509Enabled: failed to query active X509 sources: %v", err)
 		return false
 	}
 	return exist

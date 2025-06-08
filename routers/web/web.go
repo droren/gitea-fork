@@ -639,6 +639,9 @@ func registerWebRoutes(m *web.Router) {
 		m.Combo("/keys").Get(user_setting.Keys).
 			Post(web.Bind(forms.AddKeyForm{}), user_setting.KeysPost)
 		m.Post("/keys/delete", user_setting.DeleteKey)
+		m.Combo("/trusted_certs").Get(user_setting.TrustedCerts).
+			Post(web.Bind(forms.AddRootCertForm{}), user_setting.TrustedCertsPost)
+		m.Post("/trusted_certs/delete", user_setting.DeleteTrustedCert)
 		m.Group("/packages", func() {
 			m.Get("", user_setting.Packages)
 			m.Group("/rules", func() {
@@ -811,6 +814,10 @@ func registerWebRoutes(m *web.Router) {
 				m.Post("/delete", admin.DeleteApplication)
 			})
 		}, oauth2Enabled)
+
+		m.Combo("/trusted_certs").Get(admin.TrustedCerts).
+			Post(web.Bind(forms.AddRootCertForm{}), admin.TrustedCertsPost)
+		m.Post("/trusted_certs/delete", admin.DeleteTrustedCert)
 
 		m.Group("/actions", func() {
 			m.Get("", admin.RedirectToDefaultSetting)

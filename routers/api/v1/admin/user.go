@@ -296,7 +296,7 @@ func DeleteUser(ctx *context.APIContext) {
 
 	// admin should not delete themself
 	if ctx.ContextUser.ID == ctx.Doer.ID {
-		ctx.APIError(http.StatusUnprocessableEntity, fmt.Errorf("you cannot delete yourself"))
+		ctx.APIError(http.StatusUnprocessableEntity, errors.New("you cannot delete yourself"))
 		return
 	}
 
@@ -423,7 +423,7 @@ func SearchUsers(ctx *context.APIContext) {
 
 	listOptions := utils.GetListOptions(ctx)
 
-	users, maxResults, err := user_model.SearchUsers(ctx, &user_model.SearchUserOptions{
+	users, maxResults, err := user_model.SearchUsers(ctx, user_model.SearchUserOptions{
 		Actor:       ctx.Doer,
 		Type:        user_model.UserTypeIndividual,
 		LoginName:   ctx.FormTrim("login_name"),

@@ -33,6 +33,7 @@ const (
 	DLDAP       // 5
 	OAuth2      // 6
 	SSPI        // 7
+	X509        // 8
 )
 
 // String returns the string name of the LoginType
@@ -53,11 +54,21 @@ var Names = map[Type]string{
 	PAM:    "PAM",
 	OAuth2: "OAuth2",
 	SSPI:   "SPNEGO with SSPI",
+	X509:   "X.509 (Client Certificate)",
 }
 
 // Config represents login config as far as the db is concerned
 type Config interface {
 	convert.Conversion
+	SetAuthSource(*Source)
+}
+
+type ConfigBase struct {
+	AuthSource *Source
+}
+
+func (p *ConfigBase) SetAuthSource(s *Source) {
+	p.AuthSource = s
 }
 
 // SkipVerifiable configurations provide a IsSkipVerify to check if SkipVerify is set
@@ -104,19 +115,15 @@ func RegisterTypeConfig(typ Type, exemplar Config) {
 	}
 }
 
-// SourceSettable configurations can have their authSource set on them
-type SourceSettable interface {
-	SetAuthSource(*Source)
-}
-
 // Source represents an external way for authorizing users.
 type Source struct {
-	ID            int64 `xorm:"pk autoincr"`
-	Type          Type
-	Name          string             `xorm:"UNIQUE"`
-	IsActive      bool               `xorm:"INDEX NOT NULL DEFAULT false"`
-	IsSyncEnabled bool               `xorm:"INDEX NOT NULL DEFAULT false"`
-	Cfg           convert.Conversion `xorm:"TEXT"`
+	ID              int64 `xorm:"pk autoincr"`
+	Type            Type
+	Name            string `xorm:"UNIQUE"`
+	IsActive        bool   `xorm:"INDEX NOT NULL DEFAULT false"`
+	IsSyncEnabled   bool   `xorm:"INDEX NOT NULL DEFAULT false"`
+	TwoFactorPolicy string `xorm:"two_factor_policy NOT NULL DEFAULT ''"`
+	Cfg             Config `xorm:"TEXT"`
 
 	CreatedUnix timeutil.TimeStamp `xorm:"INDEX created"`
 	UpdatedUnix timeutil.TimeStamp `xorm:"INDEX updated"`
@@ -140,9 +147,7 @@ func (source *Source) BeforeSet(colName string, val xorm.Cell) {
 			return
 		}
 		source.Cfg = constructor()
-		if settable, ok := source.Cfg.(SourceSettable); ok {
-			settable.SetAuthSource(source)
-		}
+		source.Cfg.SetAuthSource(source)
 	}
 }
 
@@ -200,6 +205,10 @@ func (source *Source) SkipVerify() bool {
 	return ok && skipVerifiable.IsSkipVerify()
 }
 
+func (source *Source) TwoFactorShouldSkip() bool {
+	return source.TwoFactorPolicy == "skip"
+}
+
 // CreateSource inserts a AuthSource in the DB if not already
 // existing with the given name.
 func CreateSource(ctx context.Context, source *Source) error {
@@ -223,9 +232,7 @@ func CreateSource(ctx context.Context, source *Source) error {
 		return nil
 	}
 
-	if settable, ok := source.Cfg.(SourceSettable); ok {
-		settable.SetAuthSource(source)
-	}
+	source.Cfg.SetAuthSource(source)
 
 	registerableSource, ok := source.Cfg.(RegisterableSource)
 	if !ok {
@@ -268,6 +275,20 @@ func IsSSPIEnabled(ctx context.Context) bool {
 	}.ToConds())
 	if err != nil {
 		log.Error("IsSSPIEnabled: failed to query active SSPI sources: %v", err)
+		return false
+	}
+	return exist
+}
+
+// IsX509Enabled returns true if there is at least one activated login
+// source of type X509
+func IsX509Enabled(ctx context.Context) bool {
+	exist, err := db.Exist[Source](ctx, FindSourcesOptions{
+		IsActive:  optional.Some(true),
+		LoginType: X509,
+	}.ToConds())
+	if err != nil {
+		log.Error("IsX509Enabled: failed to query active X509 sources: %v", err)
 		return false
 	}
 	return exist
@@ -320,9 +341,7 @@ func UpdateSource(ctx context.Context, source *Source) error {
 		return nil
 	}
 
-	if settable, ok := source.Cfg.(SourceSettable); ok {
-		settable.SetAuthSource(source)
-	}
+	source.Cfg.SetAuthSource(source)
 
 	registerableSource, ok := source.Cfg.(RegisterableSource)
 	if !ok {

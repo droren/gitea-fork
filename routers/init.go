@@ -28,6 +28,7 @@ import (
 	"code.gitea.io/gitea/modules/util"
 	"code.gitea.io/gitea/modules/web"
 	"code.gitea.io/gitea/modules/web/routing"
+	gitea_x509 "code.gitea.io/gitea/modules/x509"
 	actions_router "code.gitea.io/gitea/routers/api/actions"
 	packages_router "code.gitea.io/gitea/routers/api/packages"
 	apiv1 "code.gitea.io/gitea/routers/api/v1"
@@ -174,6 +175,7 @@ func InitWebInstalled(ctx context.Context) {
 	mustInitCtx(ctx, actions_service.Init)
 
 	mustInit(repo_service.InitLicenseClassifier)
+	mustInit(gitea_x509.LoadDefaultTrustStore)
 
 	// Finally start up the cron
 	cron.NewContext(ctx)

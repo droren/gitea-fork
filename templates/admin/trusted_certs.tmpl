@@ -1,0 +1,47 @@
+{{template "admin/layout_head" (dict "ctxData" . "pageClass" "admin trustedcerts")}}
+        <div class="admin-setting-content">
+                <h4 class="ui top attached header">
+                        {{ctx.Locale.Tr "trusted_certs"}}
+                        <div class="ui right">
+                                <button id="add-cert-button" class="ui primary tiny show-panel toggle button" data-panel="#add-cert-panel">
+                                        {{ctx.Locale.Tr "settings.add_key"}}
+                                </button>
+                        </div>
+                </h4>
+                <div class="ui attached segment">
+                        <div class="{{if not .HasCertError}}tw-hidden{{end}} tw-mb-4" id="add-cert-panel">
+                                <form class="ui form" action="{{.Link}}" method="post">
+                                        {{.CsrfTokenHtml}}
+                                        <div class="field {{if .Err_Title}}error{{end}}">
+                                                <label for="cert-title">{{ctx.Locale.Tr "settings.key_name"}}</label>
+                                                <input id="cert-title" name="title" value="{{.title}}" autofocus required maxlength="50">
+                                        </div>
+                                        <div class="field {{if .Err_Content}}error{{end}}">
+                                                <label for="cert-content">{{ctx.Locale.Tr "settings.key_content"}}</label>
+                                                <textarea id="cert-content" name="content" required>{{.content}}</textarea>
+                                        </div>
+                                        <button class="ui primary button">{{ctx.Locale.Tr "settings.add_key"}}</button>
+                                        <button id="cancel-cert-button" class="ui hide-panel button" data-panel="#add-cert-panel">{{ctx.Locale.Tr "cancel"}}</button>
+                                </form>
+                        </div>
+                        <div class="flex-list">
+                                {{range .CertFiles}}
+                                        <div class="flex-item">
+                                                <div class="flex-item-main">
+                                                        <div class="flex-item-title">{{.}}</div>
+                                                </div>
+                                                <div class="flex-item-trailing">
+                                                        <form class="ui form" method="post" action="{{$.Link}}/delete">
+                                                                {{$.CsrfTokenHtml}}
+                                                                <input type="hidden" name="file" value="{{.}}">
+                                                                <button class="ui red tiny button">{{ctx.Locale.Tr "settings.delete_key"}}</button>
+                                                        </form>
+                                                </div>
+                                        </div>
+                                {{else}}
+                                        <p>{{ctx.Locale.Tr "none"}}</p>
+                                {{end}}
+                        </div>
+                </div>
+        </div>
+{{template "admin/layout_footer" .}}

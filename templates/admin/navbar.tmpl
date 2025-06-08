@@ -92,10 +92,13 @@
 				</a>
 			</div>
 		</details>
-		<a class="{{if .PageIsAdminNotices}}active {{end}}item" href="{{AppSubUrl}}/-/admin/notices">
-			{{ctx.Locale.Tr "admin.notices"}}
-		</a>
-		<details class="item toggleable-item" {{if or .PageIsAdminMonitorStats .PageIsAdminMonitorCron .PageIsAdminMonitorQueue .PageIsAdminMonitorTrace}}open{{end}}>
+                <a class="{{if .PageIsAdminNotices}}active {{end}}item" href="{{AppSubUrl}}/-/admin/notices">
+                        {{ctx.Locale.Tr "admin.notices"}}
+                </a>
+                <a class="{{if .PageIsAdminTrustedCerts}}active {{end}}item" href="{{AppSubUrl}}/-/admin/trusted_certs">
+                        {{ctx.Locale.Tr "trusted_certs"}}
+                </a>
+                <details class="item toggleable-item" {{if or .PageIsAdminMonitorStats .PageIsAdminMonitorCron .PageIsAdminMonitorQueue .PageIsAdminMonitorTrace}}open{{end}}>
 			<summary>{{ctx.Locale.Tr "admin.monitor"}}</summary>
 			<div class="menu">
 				<a class="{{if .PageIsAdminMonitorStats}}active {{end}}item" href="{{AppSubUrl}}/-/admin/monitor/stats">

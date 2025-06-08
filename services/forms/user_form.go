@@ -321,6 +321,17 @@ func (f *AddKeyForm) Validate(req *http.Request, errs binding.Errors) binding.Er
 	return middleware.Validate(errs, ctx.Data, f, ctx.Locale)
 }
 
+// AddRootCertForm for adding trusted certificates
+type AddRootCertForm struct {
+	Title   string `binding:"Required;MaxSize(50)"`
+	Content string `binding:"Required"`
+}
+
+func (f *AddRootCertForm) Validate(req *http.Request, errs binding.Errors) binding.Errors {
+	ctx := context.GetValidateContext(req)
+	return middleware.Validate(errs, ctx.Data, f, ctx.Locale)
+}
+
 // AddSecretForm for adding secrets
 type AddSecretForm struct {
 	Name        string `binding:"Required;MaxSize(255)"`

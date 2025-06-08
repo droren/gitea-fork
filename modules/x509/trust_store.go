@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"code.gitea.io/gitea/modules/setting"
 )
 
 var RootCAs *x509.CertPool
@@ -31,4 +33,9 @@ func LoadTrustStore(dir string) error {
 	}
 	RootCAs = pool
 	return nil
+}
+
+// LoadDefaultTrustStore loads certificates from the path configured in app.ini.
+func LoadDefaultTrustStore() error {
+	return LoadTrustStore(setting.X509.TrustStorePath)
 }

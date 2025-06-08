@@ -172,6 +172,7 @@ func prepareSignInPageData(ctx *context.Context) {
 	ctx.Data["PageIsSignIn"] = true
 	ctx.Data["PageIsLogin"] = true
 	ctx.Data["EnableSSPI"] = auth.IsSSPIEnabled(ctx)
+	ctx.Data["EnableClientCert"] = auth.IsX509Enabled(ctx)
 	ctx.Data["EnablePasswordSignInForm"] = setting.Service.EnablePasswordSignInForm
 	ctx.Data["EnablePasskeyAuth"] = setting.Service.EnablePasskeyAuth
 

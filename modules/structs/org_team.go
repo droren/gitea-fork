@@ -52,3 +52,10 @@ type EditTeamOption struct {
 	UnitsMap         map[string]string `json:"units_map"`
 	CanCreateOrgRepo *bool             `json:"can_create_org_repo"`
 }
+
+// DuplicateTeamOption options for duplicating a team to multiple organizations
+type DuplicateTeamOption struct {
+	// required: true
+	OrgIDs      []int64 `json:"org_ids" binding:"Required"`
+	WithMembers bool    `json:"with_members"`
+}

@@ -373,3 +373,54 @@ func RemoveTeamMember(ctx context.Context, team *organization.Team, user *user_m
 	}
 	return committer.Commit()
 }
+
+// DuplicateTeam duplicates the given team to another organization.
+// If withMembers is true, all members of the source team will be added to the new team.
+func DuplicateTeam(ctx context.Context, srcTeam *organization.Team, destOrgID int64, withMembers bool) (*organization.Team, error) {
+	if err := srcTeam.LoadUnits(ctx); err != nil {
+		return nil, err
+	}
+	if withMembers {
+		if err := srcTeam.LoadMembers(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	newTeam := &organization.Team{
+		OrgID:                   destOrgID,
+		Name:                    srcTeam.Name,
+		Description:             srcTeam.Description,
+		IncludesAllRepositories: srcTeam.IncludesAllRepositories,
+		CanCreateOrgRepo:        srcTeam.CanCreateOrgRepo,
+		AccessMode:              srcTeam.AccessMode,
+	}
+
+	newTeam.Units = make([]*organization.TeamUnit, 0, len(srcTeam.Units))
+	for _, u := range srcTeam.Units {
+		newTeam.Units = append(newTeam.Units, &organization.TeamUnit{
+			OrgID:      destOrgID,
+			Type:       u.Type,
+			AccessMode: u.AccessMode,
+		})
+	}
+
+	if err := NewTeam(ctx, newTeam); err != nil {
+		return nil, err
+	}
+
+	if withMembers {
+		for _, m := range srcTeam.Members {
+			if err := AddTeamMember(ctx, newTeam, m); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if srcTeam.IncludesAllRepositories {
+		if err := repo_service.AddAllRepositoriesToTeam(ctx, newTeam); err != nil {
+			return nil, err
+		}
+	}
+
+	return newTeam, nil
+}

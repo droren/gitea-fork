@@ -105,6 +105,8 @@ type swaggerParameterBodies struct {
 	CreateTeamOption api.CreateTeamOption
 	// in:body
 	EditTeamOption api.EditTeamOption
+	// in:body
+	DuplicateTeamOption api.DuplicateTeamOption
 
 	// in:body
 	AddTimeOption api.AddTimeOption

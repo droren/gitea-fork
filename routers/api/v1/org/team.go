@@ -878,3 +878,79 @@ func ListTeamActivityFeeds(ctx *context.APIContext) {
 
 	ctx.JSON(http.StatusOK, convert.ToActivities(ctx, feeds, ctx.Doer))
 }
+
+// DuplicateTeam api for duplicating a team to other organizations
+func DuplicateTeam(ctx *context.APIContext) {
+	// swagger:operation POST /teams/{id}/duplicate organization orgDuplicateTeam
+	// ---
+	// summary: Duplicate a team to other organizations
+	// consumes:
+	// - application/json
+	// produces:
+	// - application/json
+	// parameters:
+	// - name: id
+	//   in: path
+	//   description: id of the team to duplicate
+	//   type: integer
+	//   format: int64
+	//   required: true
+	// - name: body
+	//   in: body
+	//   schema:
+	//     "$ref": "#/definitions/DuplicateTeamOption"
+	// responses:
+	//   "201":
+	//     description: Created teams
+	//     schema:
+	//       type: array
+	//       items:
+	//         "$ref": "#/definitions/Team"
+	//   "403":
+	//     "$ref": "#/responses/forbidden"
+	//   "404":
+	//     "$ref": "#/responses/notFound"
+	opt := web.GetForm(ctx).(*api.DuplicateTeamOption)
+
+	var results []*api.Team
+	for _, orgID := range opt.OrgIDs {
+		destOrg, err := organization.GetOrgByID(ctx, orgID)
+		if err != nil {
+			if user_model.IsErrUserNotExist(err) {
+				ctx.NotFound(err)
+				return
+			}
+			ctx.APIErrorInternal(err)
+			return
+		}
+
+		isOwner, err := organization.IsOrganizationOwner(ctx, destOrg.ID, ctx.Doer.ID)
+		if err != nil {
+			ctx.APIErrorInternal(err)
+			return
+		}
+		if !isOwner {
+			ctx.Error(http.StatusForbidden, "forbidden")
+			return
+		}
+
+		newTeam, err := org_service.DuplicateTeam(ctx, ctx.Org.Team, destOrg.ID, opt.WithMembers)
+		if err != nil {
+			if organization.IsErrTeamAlreadyExist(err) {
+				ctx.APIError(http.StatusUnprocessableEntity, err)
+				return
+			}
+			ctx.APIErrorInternal(err)
+			return
+		}
+
+		t, err := convert.ToTeam(ctx, newTeam, false)
+		if err != nil {
+			ctx.APIErrorInternal(err)
+			return
+		}
+		results = append(results, t)
+	}
+
+	ctx.JSON(http.StatusCreated, results)
+}

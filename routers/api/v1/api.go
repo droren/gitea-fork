@@ -1689,6 +1689,7 @@ func Routes() *web.Router {
 					Get(reqToken(), org.GetTeamRepo)
 			})
 			m.Get("/activities/feeds", org.ListTeamActivityFeeds)
+			m.Post("/duplicate", reqOrgOwnership(), bind(api.DuplicateTeamOption{}), org.DuplicateTeam)
 		}, tokenRequiresScopes(auth_model.AccessTokenScopeCategoryOrganization), orgAssignment(false, true), reqToken(), reqTeamMembership(), checkTokenPublicOnly())
 
 		m.Group("/admin", func() {

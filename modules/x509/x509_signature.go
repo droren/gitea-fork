@@ -8,7 +8,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/fullsailor/pkcs7" // Ensure you have this dependency.
+	"github.com/fullsailor/pkcs7"
 )
 
 // X509Signature holds the details extracted from an X.509 signature.
@@ -37,19 +37,16 @@ func VerifyX509Signature(commitData []byte, signatureText string, rootPool *x509
 		return nil, err
 	}
 
-	// Verify the signature using the provided root certificate pool.
-	// Note: pkcs7.VerifyWithChain will perform certificate chain verification.
-	if err = p7.VerifyWithChain(rootPool); err != nil {
+	// Verify the signature using the provided certificate.
+	if err = p7.Verify(); err != nil {
 		return nil, err
 	}
 
-	// Ensure there is at least one signer.
-	if len(p7.Signers) == 0 {
+	// Retrieve the signer's certificate.
+	signerCert := p7.GetOnlySigner()
+	if signerCert == nil {
 		return nil, errors.New("no signers found in the signature")
 	}
-
-	// For simplicity, consider the first signer certificate.
-	signerCert := p7.Signers[0]
 
 	// Optional: check that the signed content matches the commit data.
 	// Depending on your signature format, p7.Content might be nil, so adapt accordingly.

@@ -1,11 +1,9 @@
 // Copyright 2022 The Gitea Authors. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-//nolint:forbidigo
 package base
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"xorm.io/xorm"
+	"xorm.io/xorm/schemas"
 )
 
 // FIXME: this file shouldn't be in a normal package, it should only be compiled for tests
@@ -90,6 +89,16 @@ func PrepareTestEnv(t *testing.T, skip int, syncModels ...any) (*xorm.Engine, fu
 	return x, deferFn
 }
 
+func LoadTableSchemasMap(t *testing.T, x *xorm.Engine) map[string]*schemas.Table {
+	tables, err := x.DBMetas()
+	require.NoError(t, err)
+	tableMap := make(map[string]*schemas.Table)
+	for _, table := range tables {
+		tableMap[table.Name] = table
+	}
+	return tableMap
+}
+
 func MainTest(m *testing.M) {
 	testlogger.Init()
 
@@ -106,7 +115,7 @@ func MainTest(m *testing.M) {
 	giteaConf := os.Getenv("GITEA_CONF")
 	if giteaConf == "" {
 		giteaConf = filepath.Join(filepath.Dir(setting.AppPath), "tests/sqlite.ini")
-		fmt.Printf("Environment variable $GITEA_CONF not set - defaulting to %s\n", giteaConf)
+		_, _ = fmt.Fprintf(os.Stderr, "Environment variable $GITEA_CONF not set - defaulting to %s\n", giteaConf)
 	}
 
 	if !filepath.IsAbs(giteaConf) {
@@ -125,7 +134,7 @@ func MainTest(m *testing.M) {
 	setting.AppDataPath = tmpDataPath
 
 	unittest.InitSettingsForTesting()
-	if err = git.InitFull(context.Background()); err != nil {
+	if err = git.InitFull(); err != nil {
 		testlogger.Fatalf("Unable to InitFull: %v\n", err)
 	}
 	setting.LoadDBSetting()
@@ -134,7 +143,7 @@ func MainTest(m *testing.M) {
 	exitStatus := m.Run()
 
 	if err := removeAllWithRetry(setting.RepoRootPath); err != nil {
-		fmt.Fprintf(os.Stderr, "os.RemoveAll: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "os.RemoveAll: %v\n", err)
 	}
 	os.Exit(exitStatus)
 }

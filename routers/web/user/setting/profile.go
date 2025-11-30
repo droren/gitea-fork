@@ -22,6 +22,7 @@ import (
 	"code.gitea.io/gitea/modules/log"
 	"code.gitea.io/gitea/modules/optional"
 	"code.gitea.io/gitea/modules/setting"
+	"code.gitea.io/gitea/modules/structs"
 	"code.gitea.io/gitea/modules/templates"
 	"code.gitea.io/gitea/modules/translation"
 	"code.gitea.io/gitea/modules/typesniffer"
@@ -74,7 +75,7 @@ func ProfilePost(ctx *context.Context) {
 			ctx.Redirect(setting.AppSubURL + "/user/settings")
 			return
 		}
-		if err := user_service.RenameUser(ctx, ctx.Doer, form.Name); err != nil {
+		if err := user_service.RenameUser(ctx, ctx.Doer, form.Name, ctx.Doer); err != nil {
 			switch {
 			case user_model.IsErrUserIsNotLocal(err):
 				ctx.Flash.Error(ctx.Tr("form.username_change_not_local_user"))
@@ -206,8 +207,8 @@ func Organization(ctx *context.Context) {
 			PageSize: setting.UI.Admin.UserPagingNum,
 			Page:     ctx.FormInt("page"),
 		},
-		UserID:         ctx.Doer.ID,
-		IncludePrivate: ctx.IsSigned,
+		UserID:            ctx.Doer.ID,
+		IncludeVisibility: structs.VisibleTypePrivate,
 	}
 
 	if opts.Page <= 0 {
@@ -368,7 +369,7 @@ func UpdateUIThemePost(ctx *context.Context) {
 		return
 	}
 
-	if !webtheme.IsThemeAvailable(form.Theme) {
+	if webtheme.GetThemeMetaInfo(form.Theme) == nil {
 		ctx.Flash.Error(ctx.Tr("settings.theme_update_error"))
 		ctx.Redirect(setting.AppSubURL + "/user/settings/appearance")
 		return

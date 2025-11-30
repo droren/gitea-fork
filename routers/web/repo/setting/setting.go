@@ -16,6 +16,7 @@ import (
 	unit_model "code.gitea.io/gitea/models/unit"
 	user_model "code.gitea.io/gitea/models/user"
 	"code.gitea.io/gitea/modules/git"
+	"code.gitea.io/gitea/modules/gitrepo"
 	"code.gitea.io/gitea/modules/indexer/code"
 	issue_indexer "code.gitea.io/gitea/modules/indexer/issues"
 	"code.gitea.io/gitea/modules/indexer/stats"
@@ -28,7 +29,6 @@ import (
 	"code.gitea.io/gitea/modules/validation"
 	"code.gitea.io/gitea/modules/web"
 	actions_service "code.gitea.io/gitea/services/actions"
-	asymkey_service "code.gitea.io/gitea/services/asymkey"
 	"code.gitea.io/gitea/services/context"
 	"code.gitea.io/gitea/services/forms"
 	"code.gitea.io/gitea/services/migrations"
@@ -61,8 +61,8 @@ func SettingsCtxData(ctx *context.Context) {
 	ctx.Data["MinimumMirrorInterval"] = setting.Mirror.MinInterval
 	ctx.Data["CanConvertFork"] = ctx.Repo.Repository.IsFork && ctx.Doer.CanCreateRepoIn(ctx.Repo.Repository.Owner)
 
-	signing, _ := asymkey_service.SigningKey(ctx, ctx.Repo.Repository.RepoPath())
-	ctx.Data["SigningKeyAvailable"] = len(signing) > 0
+	signing, _ := gitrepo.GetSigningKey(ctx, ctx.Repo.Repository)
+	ctx.Data["SigningKeyAvailable"] = signing != nil
 	ctx.Data["SigningSettings"] = setting.Repository.Signing
 	ctx.Data["IsRepoIndexerEnabled"] = setting.Indexer.RepoIndexerEnabled
 
@@ -104,8 +104,8 @@ func SettingsPost(ctx *context.Context) {
 	ctx.Data["DefaultMirrorInterval"] = setting.Mirror.DefaultInterval
 	ctx.Data["MinimumMirrorInterval"] = setting.Mirror.MinInterval
 
-	signing, _ := asymkey_service.SigningKey(ctx, ctx.Repo.Repository.RepoPath())
-	ctx.Data["SigningKeyAvailable"] = len(signing) > 0
+	signing, _ := gitrepo.GetSigningKey(ctx, ctx.Repo.Repository)
+	ctx.Data["SigningKeyAvailable"] = signing != nil
 	ctx.Data["SigningSettings"] = setting.Repository.Signing
 	ctx.Data["IsRepoIndexerEnabled"] = setting.Indexer.RepoIndexerEnabled
 
@@ -165,7 +165,7 @@ func handleSettingsPostUpdate(ctx *context.Context) {
 
 	newRepoName := form.RepoName
 	// Check if repository name has been changed.
-	if repo.LowerName != strings.ToLower(newRepoName) {
+	if !strings.EqualFold(repo.LowerName, newRepoName) {
 		// Close the GitRepo if open
 		if ctx.Repo.GitRepo != nil {
 			ctx.Repo.GitRepo.Close()
@@ -206,11 +206,6 @@ func handleSettingsPostUpdate(ctx *context.Context) {
 	repo.Description = form.Description
 	repo.Website = form.Website
 	repo.IsTemplate = form.Template
-
-	// Visibility of forked repository is forced sync with base repository.
-	if repo.IsFork {
-		form.Private = repo.BaseRepo.IsPrivate || repo.BaseRepo.Owner.Visibility == structs.VisibleTypePrivate
-	}
 
 	if err := repo_service.UpdateRepository(ctx, repo, false); err != nil {
 		ctx.ServerError("UpdateRepository", err)
@@ -258,7 +253,7 @@ func handleSettingsPostMirror(ctx *context.Context) {
 		return
 	}
 
-	u, err := git.GetRemoteURL(ctx, ctx.Repo.Repository.RepoPath(), pullMirror.GetRemoteName())
+	u, err := gitrepo.GitRemoteGetURL(ctx, ctx.Repo.Repository, pullMirror.GetRemoteName())
 	if err != nil {
 		ctx.Data["Err_MirrorAddress"] = true
 		handleSettingRemoteAddrError(ctx, err, form)
@@ -613,12 +608,6 @@ func handleSettingsPostAdvanced(ctx *context.Context) {
 		deleteUnitTypes = append(deleteUnitTypes, unit_model.TypePackages)
 	}
 
-	if form.EnableActions && !unit_model.TypeActions.UnitGlobalDisabled() {
-		units = append(units, newRepoUnit(repo, unit_model.TypeActions, nil))
-	} else if !unit_model.TypeActions.UnitGlobalDisabled() {
-		deleteUnitTypes = append(deleteUnitTypes, unit_model.TypeActions)
-	}
-
 	if form.EnablePulls && !unit_model.TypePullRequests.UnitGlobalDisabled() {
 		units = append(units, newRepoUnit(repo, unit_model.TypePullRequests, &repo_model.PullRequestsConfig{
 			IgnoreWhitespaceConflicts:     form.PullsIgnoreWhitespace,
@@ -663,43 +652,36 @@ func handleSettingsPostAdvanced(ctx *context.Context) {
 func handleSettingsPostSigning(ctx *context.Context) {
 	form := web.GetForm(ctx).(*forms.RepoSettingForm)
 	repo := ctx.Repo.Repository
-	changed := false
 	trustModel := repo_model.ToTrustModel(form.TrustModel)
 	if trustModel != repo.TrustModel {
 		repo.TrustModel = trustModel
-		changed = true
-	}
-
-	if changed {
-		if err := repo_service.UpdateRepository(ctx, repo, false); err != nil {
-			ctx.ServerError("UpdateRepository", err)
+		if err := repo_model.UpdateRepositoryColsNoAutoTime(ctx, repo, "trust_model"); err != nil {
+			ctx.ServerError("UpdateRepositoryColsNoAutoTime", err)
 			return
 		}
+		log.Trace("Repository signing settings updated: %s/%s", ctx.Repo.Owner.Name, repo.Name)
 	}
-	log.Trace("Repository signing settings updated: %s/%s", ctx.Repo.Owner.Name, repo.Name)
 
 	ctx.Flash.Success(ctx.Tr("repo.settings.update_settings_success"))
 	ctx.Redirect(ctx.Repo.RepoLink + "/settings")
 }
 
 func handleSettingsPostAdmin(ctx *context.Context) {
-	form := web.GetForm(ctx).(*forms.RepoSettingForm)
-	repo := ctx.Repo.Repository
 	if !ctx.Doer.IsAdmin {
 		ctx.HTTPError(http.StatusForbidden)
 		return
 	}
 
+	repo := ctx.Repo.Repository
+	form := web.GetForm(ctx).(*forms.RepoSettingForm)
 	if repo.IsFsckEnabled != form.EnableHealthCheck {
 		repo.IsFsckEnabled = form.EnableHealthCheck
+		if err := repo_model.UpdateRepositoryColsNoAutoTime(ctx, repo, "is_fsck_enabled"); err != nil {
+			ctx.ServerError("UpdateRepositoryColsNoAutoTime", err)
+			return
+		}
+		log.Trace("Repository admin settings updated: %s/%s", ctx.Repo.Owner.Name, repo.Name)
 	}
-
-	if err := repo_service.UpdateRepository(ctx, repo, false); err != nil {
-		ctx.ServerError("UpdateRepository", err)
-		return
-	}
-
-	log.Trace("Repository admin settings updated: %s/%s", ctx.Repo.Owner.Name, repo.Name)
 
 	ctx.Flash.Success(ctx.Tr("repo.settings.update_settings_success"))
 	ctx.Redirect(ctx.Repo.RepoLink + "/settings")

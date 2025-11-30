@@ -58,7 +58,7 @@ func (source *Source) Authenticate(ctx context.Context, user *user_model.User, u
 			opts := &user_service.UpdateOptions{}
 			if source.AdminFilter != "" && user.IsAdmin != sr.IsAdmin {
 				// Change existing admin flag only if AdminFilter option is set
-				opts.IsAdmin = optional.Some(sr.IsAdmin)
+				opts.IsAdmin = user_service.UpdateOptionFieldFromSync(sr.IsAdmin)
 			}
 			if !sr.IsAdmin && source.RestrictedFilter != "" && user.IsRestricted != sr.IsRestricted {
 				// Change existing restricted flag only if RestrictedFilter option is set
@@ -105,9 +105,7 @@ func (source *Source) Authenticate(ctx context.Context, user *user_model.User, u
 			}
 		}
 		if source.AttributeAvatar != "" {
-			if err := user_service.UploadAvatar(ctx, user, sr.Avatar); err != nil {
-				return user, err
-			}
+			_ = user_service.UploadAvatar(ctx, user, sr.Avatar)
 		}
 	}
 

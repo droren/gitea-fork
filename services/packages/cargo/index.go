@@ -306,11 +306,11 @@ func alterRepositoryContent(ctx context.Context, doer *user_model.User, repo *re
 		return err
 	}
 
-	return t.Push(ctx, doer, commitHash, repo.DefaultBranch)
+	return t.Push(ctx, doer, commitHash, repo.DefaultBranch, false)
 }
 
 func writeObjectToIndex(ctx context.Context, t *files_service.TemporaryUploadRepository, path string, r io.Reader) error {
-	hash, err := t.HashObject(ctx, r)
+	hash, err := t.HashObjectAndWrite(ctx, r)
 	if err != nil {
 		return err
 	}
